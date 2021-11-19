@@ -74,7 +74,7 @@ class Auth extends Route {
                 from: ["user"],
                 where: {
                     keys: ["password", ["email", "phone"]],
-                    values: [password, email_phone, email_phone],
+                    values: [password, email_phone, email_phone.charAt(0) === "0" ? email_phone.substring(1) : email_phone],
                     op: ["AND", ["OR", "AND"]]
                 }
             });
@@ -91,11 +91,13 @@ class Auth extends Route {
                 });
 
                 if (conf_rows.length == 1) {
+                    user.email_confirmed = false;
                     res.send({
                         next: "verify",
                         user
                     })
                 } else {
+                    user.email_confirmed = true;
                     res.send({
                         next: "success",
                         user
@@ -120,28 +122,31 @@ class Auth extends Route {
             let username = req.body.username;
             let password = req.body.password;
             let birth_date = req.body.birth_date;
+
             var err = [];
-            let rows = await this.select({
-                select: ["id"],
-                from: ["user"],
-                where: {
-                    keys: ["email"],
-                    values: [email]
-                }
-            });
-            if (rows.length > 0) {
-                err.push({
-                    key: "email",
-                    value: "email_used"
-                })
-            }
 
             if (checkEmail(email) == false) {
                 err.push({
                     key: "email",
                     value: "email_invalid"
                 })
+            } else {
+                let rows = await this.select({
+                    select: ["id"],
+                    from: ["user"],
+                    where: {
+                        keys: ["email"],
+                        values: [email]
+                    }
+                });
+                if (rows.length > 0) {
+                    err.push({
+                        key: "email",
+                        value: "email_used"
+                    })
+                }
             }
+
 
             if (checkDate(birth_date) == false) {
                 err.push({
@@ -263,6 +268,95 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
+                    res.send({ status: "success" })
+                } else {
+                    res.send({
+                        err: [{
+                            key: "current_password",
+                            value: "incorrect_password"
+                        }]
+                    })
+                }
+            }
+        });
+
+        this.addEntry('editEmail', async(req, res) => {
+            let user_id = req.body.user_id;
+            let email = req.body.email;
+            let password = req.body.password;
+
+            if (!user_id || !email || !password) {
+                res.send({
+                    err: [{
+                        key: "global",
+                        value: "missing params, (required = [user_id:text, email:text, password:text])"
+                    }]
+                })
+                return;
+            }
+
+            var err = [];
+
+            if (checkEmail(email) == false) {
+                err.push({
+                    key: "email_address",
+                    value: "email_invalid"
+                })
+            } else {
+                let rows = await this.select({
+                    select: ["id"],
+                    from: ["user"],
+                    where: {
+                        keys: ["email"],
+                        values: [email]
+                    }
+                });
+                if (rows.length > 0) {
+                    err.push({
+                        key: "email_address",
+                        value: "email_used"
+                    })
+                }
+            }
+
+            if (err.length > 0) {
+                res.send({ err })
+            } else {
+                await this.delete({
+                    from: "email_confirm",
+                    where: {
+                        keys: ["user_id"],
+                        values: [user_id]
+                    }
+                });
+                let count = await this.update({
+                    table: "user",
+                    cols: ["email"],
+                    values: [email],
+                    where: {
+                        keys: ["id", "password"],
+                        values: [user_id, password],
+                        op: ["AND"]
+                    }
+                });
+
+                if (count == 1) {
+                    let code = (await this.select({
+                        select: ["generate_confirmation_code as code"],
+                        from: ["generate_confirmation_code(8)"]
+                    }))[0].code;
+
+                    await this.insert({
+                        table: "email_confirm",
+                        keys: [
+                            "user_id",
+                            "code"
+                        ],
+                        values: [
+                            user_id,
+                            code
+                        ]
+                    });
                     res.send({ status: "success" })
                 } else {
                     res.send({
