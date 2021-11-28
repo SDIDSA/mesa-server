@@ -67,7 +67,6 @@ class db {
     }
 
     async select(data, schema) {
-        console.log(schema);
         let query = "SELECT ";
         query += lay(data.select);
         query += " FROM " + lay(data.from, (schema ? schema : "public") + ".");
