@@ -7,11 +7,19 @@ const checkEmail = (email) => {
 }
 
 var chars = "abcdefghijklmnopqrstuvwxyz";
-chars += "0123456789";
+var numbers = "0123456789";
+chars += numbers;
 const random = (length) => {
     let res = "";
     for (let i = 0; i < length; i++) {
         res += chars.charAt(parseInt(Math.random() * chars.length));
+    }
+    return res;
+}
+const conf_code = (length) => {
+    let res = "";
+    for (let i = 0; i < length; i++) {
+        res += numbers.charAt(parseInt(Math.random() * numbers.length));
     }
     return res;
 }
@@ -322,13 +330,6 @@ class Auth extends Route {
             if (err.length > 0) {
                 res.send({ err })
             } else {
-                await this.delete({
-                    from: "email_confirm",
-                    where: {
-                        keys: ["user_id"],
-                        values: [user_id]
-                    }
-                });
                 let count = await this.update({
                     table: "user",
                     cols: ["email"],
@@ -341,10 +342,14 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
-                    let code = (await this.select({
-                        select: ["generate_confirmation_code as code"],
-                        from: ["generate_confirmation_code(8)"]
-                    }))[0].code;
+                    await this.delete({
+                        from: "email_confirm",
+                        where: {
+                            keys: ["user_id"],
+                            values: [user_id]
+                        }
+                    });
+                    let code = conf_code(8);
 
                     await this.insert({
                         table: "email_confirm",
@@ -367,6 +372,58 @@ class Auth extends Route {
                     })
                 }
             }
+        });
+
+        this.addEntry("changePassword", async(req, res) => {
+            let user_id = req.body.user_id;
+            let curr_pass = req.body.curr_pass;
+            let new_pass = req.body.new_pass;
+
+            var err = [];
+
+            if (err.length > 0) {
+                res.send({ err })
+            } else {
+                let count = await this.update({
+                    table: "user",
+                    cols: ["password"],
+                    values: [new_pass],
+                    where: {
+                        keys: ["id", "password"],
+                        values: [user_id, curr_pass],
+                        op: ["AND"]
+                    }
+                });
+
+                if (count == 1) {
+                    res.send({ status: "success" })
+                } else {
+                    res.send({
+                        err: [{
+                            key: "current_password",
+                            value: "incorrect_password"
+                        }]
+                    })
+                }
+            }
+        });
+
+        this.addEntry("deleteAccount", async(req, res) => {
+            let user_id = req.body.user_id;
+            let password = req.body.password;
+
+            let count = await this.delete({
+                from: "user",
+                where: {
+                    keys: ["id", "password"],
+                    values: [user_id, password],
+                    op: ["AND"]
+                }
+            });
+
+            res.send({
+                count
+            })
         });
     }
 }
