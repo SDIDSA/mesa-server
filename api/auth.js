@@ -1,6 +1,14 @@
 const Route = require("./route.js");
 
 const success = { status: "success" };
+const incorrect_password = (key) => {
+    return {
+        err: [{
+            key,
+            value: "incorrect_password"
+        }]
+    }
+}
 
 const checkEmail = (email) => {
     return /^\S+@\S+\.\S+$/.test(email);
@@ -199,7 +207,7 @@ class Auth extends Route {
                         birth_date
                     ]
                 })
-                res.send({ status: "success" });
+                res.send(success);
             }
         });
 
@@ -222,10 +230,8 @@ class Auth extends Route {
                     }]
                 });
             } else {
-                res.send({
-                    user_id,
-                    code
-                })
+                res.send(success);
+                this.app.user_sync.notify(user_id, { email_confirmed: true });
             }
         })
 
@@ -276,14 +282,10 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
-                    res.send({ status: "success" })
+                    res.send(success);
+                    this.app.user_sync.notify(user_id, { username });
                 } else {
-                    res.send({
-                        err: [{
-                            key: "current_password",
-                            value: "incorrect_password"
-                        }]
-                    })
+                    res.send(incorrect_password("current_password"));
                 }
             }
         });
@@ -342,35 +344,163 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
-                    await this.delete({
-                        from: "email_confirm",
-                        where: {
-                            keys: ["user_id"],
-                            values: [user_id]
-                        }
-                    });
                     let code = conf_code(8);
+                    try {
+                        await this.insert({
+                            table: "email_confirm",
+                            keys: [
+                                "user_id",
+                                "code"
+                            ],
+                            values: [
+                                user_id,
+                                code
+                            ]
+                        });
+                    } catch (err) {
+                        await this.update({
+                            table: "email_confirm",
+                            cols: ["code"],
+                            values: [code],
+                            where: {
+                                keys: ["user_id"],
+                                values: [user_id]
+                            }
+                        });
+                    }
 
-                    await this.insert({
-                        table: "email_confirm",
-                        keys: [
-                            "user_id",
-                            "code"
-                        ],
-                        values: [
-                            user_id,
-                            code
-                        ]
-                    });
-                    res.send({ status: "success" })
+                    res.send(success);
+                    this.app.user_sync.notify(user_id, { email, email_confirmed: false });
                 } else {
-                    res.send({
-                        err: [{
-                            key: "current_password",
-                            value: "incorrect_password"
-                        }]
-                    })
+                    res.send(incorrect_password("current_password"));
                 }
+            }
+        });
+
+        this.addEntry("sendPhoneCode", async(req, res) => {
+            let user_id = req.body.user_id;
+            let phone = req.body.phone;
+
+            let code = conf_code(6);
+
+            try {
+                await this.insert({
+                    table: "phone_confirm",
+                    keys: [
+                        "user_id",
+                        "code",
+                        "phone"
+                    ],
+                    values: [
+                        user_id,
+                        code,
+                        phone
+                    ]
+                });
+            } catch (err) {
+                await this.update({
+                    table: "phone_confirm",
+                    cols: ["code", "phone"],
+                    values: [code, phone],
+                    where: {
+                        keys: ["user_id"],
+                        values: [user_id]
+                    }
+                });
+            }
+
+            res.send(success);
+        });
+
+        this.addEntry("verifyPhone", async(req, res) => {
+            let user_id = req.body.user_id;
+            let phone = req.body.phone;
+            let code = req.body.code;
+
+            let count = await this.update({
+                table: "phone_confirm",
+                cols: ["code"],
+                values: ["true"],
+                where: {
+                    keys: ["user_id", "code", "phone"],
+                    values: [user_id, code, phone],
+                    op: ["AND", "AND"]
+                }
+            });
+
+            if (count == 0) {
+                res.send({
+                    err: [{
+                        key: "verification_code",
+                        value: "verification_code_incorrect"
+                    }]
+                });
+            } else {
+                res.send(success)
+            }
+        });
+
+        this.addEntry("finalizePhone", async(req, res) => {
+            let user_id = req.body.user_id;
+            let password = req.body.password;
+
+            let phone = (await this.select({
+                select: ["phone"],
+                from: ["phone_confirm"],
+                where: {
+                    keys: ["user_id", "code"],
+                    values: [user_id, "true"],
+                    op: ["AND"]
+                }
+            }))[0].phone;
+
+            console.log(phone);
+
+            let count = await this.update({
+                table: "user",
+                cols: ["phone"],
+                values: [phone],
+                where: {
+                    keys: ["id", "password"],
+                    values: [user_id, password],
+                    op: ["AND"]
+                }
+            });
+
+            if (count == 1) {
+                res.send({ phone });
+                await this.delete({
+                    from: "phone_confirm",
+                    where: {
+                        keys: ["user_id"],
+                        values: [user_id]
+                    }
+                });
+            } else {
+                res.send(incorrect_password("password"));
+            }
+        });
+
+        this.addEntry("removePhone", async(req, res) => {
+            let user_id = req.body.user_id;
+            let password = req.body.password;
+
+            let count = await this.update({
+                table: "user",
+                cols: ["phone"],
+                values: [""],
+                where: {
+                    keys: ["id", "password"],
+                    values: [user_id, password],
+                    op: ["AND"]
+                }
+            });
+
+            if (count == 1) {
+                res.send(success);
+                this.app.user_sync.notify(user_id, { phone: "" });
+            } else {
+                res.send(incorrect_password("password"));
             }
         });
 
@@ -396,14 +526,9 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
-                    res.send({ status: "success" })
+                    res.send(success)
                 } else {
-                    res.send({
-                        err: [{
-                            key: "current_password",
-                            value: "incorrect_password"
-                        }]
-                    })
+                    res.send(incorrect_password("current_password"));
                 }
             }
         });
@@ -421,9 +546,11 @@ class Auth extends Route {
                 }
             });
 
-            res.send({
-                count
-            })
+            if (count == 1) {
+                res.send(success)
+            } else {
+                res.send(incorrect_password("password"));
+            }
         });
     }
 }
