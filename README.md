@@ -1,5 +1,5 @@
-# mesa-server
-The web server for the Mesa Discord clone, written in javascript.
+## mesa-server
 
-This project is being developed on par with the [mesa-desktop](https://github.com/SDIDSA/mesa-desktop) project (and other clients in the future).
+The web server for the Mesa Discord clone, written in javascript using [Express](https://expressjs.com/) and runs on [node.js](https://nodejs.org/en/).
 
+This project is part of the Mesa project, see the [SDIDSA/Mesa](https://github.com/SDIDSA/mesa) for more info.
