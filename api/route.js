@@ -1,13 +1,13 @@
 class Route {
     constructor(app, path) {
-        console.log("adding route " + path);
+        console.log("registering route " + path);
         this.app = app;
         this.path = path;
     }
 
     addEntry(name, handler) {
         let ent = this.path + "/" + name;
-        console.log("adding path  " + ent);
+        console.log("registering path  " + ent);
         this.app.post(ent, handler);
     }
 
