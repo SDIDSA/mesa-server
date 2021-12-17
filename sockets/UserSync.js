@@ -7,10 +7,6 @@ class UserSync extends SocketListener {
         super(app);
 
         this.sockets = new HashMap();
-
-        this.addListener("user_sync_register", (data) => {
-            this.register_socket(data.user_id, data.socket);
-        });
     }
 
     register_socket(user_id, socket) {

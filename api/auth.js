@@ -84,6 +84,7 @@ class Auth extends Route {
         this.addEntry("login", async(req, res) => {
             let email_phone = req.body.email_phone;
             let password = req.body.password;
+            let socket = req.body.socket;
 
             let rows = await this.select({
                 select: ["*"],
@@ -105,6 +106,8 @@ class Auth extends Route {
                         values: [user.id]
                     }
                 });
+
+                this.app.user_sync.register_socket(user.id, socket);
 
                 if (conf_rows.length == 1) {
                     user.email_confirmed = false;
@@ -468,7 +471,8 @@ class Auth extends Route {
             });
 
             if (count == 1) {
-                res.send({ phone });
+                res.send(success);
+                this.app.user_sync.notify(user_id, { phone });
                 await this.delete({
                     from: "phone_confirm",
                     where: {
