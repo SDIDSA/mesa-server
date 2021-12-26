@@ -3,18 +3,33 @@ const HashMap = require("hashmap");
 class SocketListener {
     constructor(app) {
         this.app = app;
-        this.listeners = new HashMap();
+        this.sockets = new HashMap();
+        this.tokens = new HashMap();
     }
 
-    addListener(name, handler) {
-        console.log("registering socket listener [" + name + "]");
-        this.listeners.set(name, handler);
+    addSocket(socket, token) {
+        this.sockets.set(token, socket);
+        this.tokens.set(socket, token);
+
+        console.log(this.sockets);
     }
 
-    addSocket(socket) {
-        this.listeners.forEach((handler, name) => {
-            socket.on(name, handler);
-        });
+    removeSocket(socket) {
+        this.sockets.delete(this.tokens.get(socket));
+        this.tokens.delete(socket);
+
+        console.log(this.sockets);
+    }
+
+    removeToken(token) {
+        this.tokens.delete(this.sockets.get(token));
+        this.sockets.delete(token);
+
+        console.log(this.sockets);
+    }
+
+    getSocket(token) {
+        return this.sockets.get(token);
     }
 
     to(socket) {

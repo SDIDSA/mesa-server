@@ -8,7 +8,10 @@ var db = require('./db/db.js');
 var express = require('express');
 var http = require('http');
 var { Server } = require("socket.io");
+const session = require('./api/session.js');
+const Media = require('./media/media.js');
 
+var media = new Media();
 
 var app = express();
 var server = http.createServer(app);
@@ -23,28 +26,27 @@ const registerRoute = (route) => {
     new route(app);
 }
 
-const socketListeners = [];
-const registerSocketListener = (socketListener) => {
-    let sl = new socketListener(app);
-    socketListeners.push(sl);
-}
-
-io.on("connect", socket => {
-    socketListeners.forEach(sl => {
-        sl.addSocket(socket);
-    })
-});
-
 app.get("/", (req, res) => {
     res.send('working');
 })
 
 registerRoute(auth);
+registerRoute(session);
 registerRoute(dev);
 
 let user_sync = new UserSync(app);
-socketListeners.push(user_sync);
+
+io.on("connect", socket => {
+    socket.on('register', data => {
+        user_sync.addSocket(data.socket, data.token);
+    });
+
+    socket.on('disconnect', () => {
+        user_sync.removeSocket(socket.id);
+    });
+});
 
 app.user_sync = user_sync;
+app.media = media;
 
 server.listen(4000);

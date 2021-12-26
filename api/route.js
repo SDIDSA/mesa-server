@@ -1,6 +1,6 @@
 class Route {
     constructor(app, path) {
-        console.log("registering route " + path);
+        console.log("\nregistering route " + path);
         this.app = app;
         this.path = path;
     }

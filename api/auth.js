@@ -84,7 +84,6 @@ class Auth extends Route {
         this.addEntry("login", async(req, res) => {
             let email_phone = req.body.email_phone;
             let password = req.body.password;
-            let socket = req.body.socket;
 
             let rows = await this.select({
                 select: ["*"],
@@ -107,21 +106,13 @@ class Auth extends Route {
                     }
                 });
 
-                this.app.user_sync.register_socket(user.id, socket);
+                let token = await this.app.user_sync.register(user.id);
 
-                if (conf_rows.length == 1) {
-                    user.email_confirmed = false;
-                    res.send({
-                        next: "verify",
-                        user
-                    })
-                } else {
-                    user.email_confirmed = true;
-                    res.send({
-                        next: "success",
-                        user
-                    })
-                }
+                user.email_confirmed = (conf_rows.length == 0);
+                res.send({
+                    user,
+                    token
+                })
             } else {
                 let er = "login_invalid";
                 res.send({
@@ -193,6 +184,8 @@ class Auth extends Route {
             if (err.length > 0) {
                 res.send({ err })
             } else {
+                let id = this.generateUniqueId();
+                let avatar = await app.media.generateAvatar(id);
                 this.insert({
                     table: "user",
                     keys: [
@@ -200,14 +193,16 @@ class Auth extends Route {
                         "email",
                         "username",
                         "password",
-                        "birth_date"
+                        "birth_date",
+                        "avatar"
                     ],
                     values: [
-                        this.generateUniqueId(),
+                        id,
                         email,
                         username,
                         password,
-                        birth_date
+                        birth_date,
+                        avatar
                     ]
                 })
                 res.send(success);
