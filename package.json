@@ -9,6 +9,7 @@
   "author": "Lukas Owen",
   "license": "ISC",
   "dependencies": {
+    "cloudinary": "^1.27.1",
     "express": "^4.17.1",
     "hashmap": "^2.4.0",
     "nodemon": "^2.0.15",
