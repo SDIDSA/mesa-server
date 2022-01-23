@@ -10,11 +10,20 @@ class Media {
         });
     }
 
-    async uploadRemote(remoteLik, name) {
+    async uploadRemote(remoteLink, name) {
         return new Promise((resolve, reject) => {
-            this.cloudinary.v2.uploader.upload(remoteLik, {
+            this.cloudinary.v2.uploader.upload(remoteLink, {
                 public_id: name
             }, (err, res) => {
+                if (err) return reject(err);
+                return resolve(res.url);
+            })
+        });
+    }
+
+    async uploadFile(path, options) {
+        return new Promise((resolve, reject) => {
+            this.cloudinary.v2.uploader.upload(path, options, (err, res) => {
                 if (err) return reject(err);
                 return resolve(res.url);
             })

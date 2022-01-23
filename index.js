@@ -10,6 +10,7 @@ var http = require('http');
 var { Server } = require("socket.io");
 const session = require('./api/session.js');
 const Media = require('./media/media.js');
+const Random = require('./utils/random.js');
 
 var media = new Media();
 
@@ -19,6 +20,7 @@ var io = new Server(server);
 
 app.db = new db();
 app.io = io;
+app.random = new Random();
 
 app.use(express.json())
 

@@ -14,24 +14,6 @@ const checkEmail = (email) => {
     return /^\S+@\S+\.\S+$/.test(email);
 }
 
-var chars = "abcdefghijklmnopqrstuvwxyz";
-var numbers = "0123456789";
-chars += numbers;
-const random = (length) => {
-    let res = "";
-    for (let i = 0; i < length; i++) {
-        res += chars.charAt(parseInt(Math.random() * chars.length));
-    }
-    return res;
-}
-const conf_code = (length) => {
-    let res = "";
-    for (let i = 0; i < length; i++) {
-        res += numbers.charAt(parseInt(Math.random() * numbers.length));
-    }
-    return res;
-}
-
 const checkDate = (date) => {
     let parts = date.split("/");
     let d = parseInt(parts[0]);
@@ -69,10 +51,10 @@ class Auth extends Route {
     }
 
     generateUniqueId() {
-        let id = random(8);
+        let id = this.app.random.random(8);
 
         while (this.checkId(id)) {
-            id = random(8);
+            id = this.app.random.random(8);
         }
 
         return id;
@@ -342,7 +324,7 @@ class Auth extends Route {
                 });
 
                 if (count == 1) {
-                    let code = conf_code(8);
+                    let code = this.app.random.conf_code(8);
                     try {
                         await this.insert({
                             table: "email_confirm",
@@ -379,35 +361,48 @@ class Auth extends Route {
             let user_id = req.body.user_id;
             let phone = req.body.phone;
 
-            let code = conf_code(6);
+            let rows = await this.select({
+                select: ["id"],
+                from: ["user"],
+                where: {
+                    keys: ["phone"],
+                    values: [phone]
+                }
+            });
 
-            try {
-                await this.insert({
-                    table: "phone_confirm",
-                    keys: [
-                        "user_id",
-                        "code",
-                        "phone"
-                    ],
-                    values: [
-                        user_id,
-                        code,
-                        phone
-                    ]
-                });
-            } catch (err) {
-                await this.update({
-                    table: "phone_confirm",
-                    cols: ["code", "phone"],
-                    values: [code, phone],
-                    where: {
-                        keys: ["user_id"],
-                        values: [user_id]
-                    }
-                });
+            if (rows.length != 0) {
+                res.send({ err: "phone_used" });
+            } else {
+                let code = this.app.random.conf_code(6);
+
+                try {
+                    await this.insert({
+                        table: "phone_confirm",
+                        keys: [
+                            "user_id",
+                            "code",
+                            "phone"
+                        ],
+                        values: [
+                            user_id,
+                            code,
+                            phone
+                        ]
+                    });
+                } catch (err) {
+                    await this.update({
+                        table: "phone_confirm",
+                        cols: ["code", "phone"],
+                        values: [code, phone],
+                        where: {
+                            keys: ["user_id"],
+                            values: [user_id]
+                        }
+                    });
+                }
+
+                res.send(success);
             }
-
-            res.send(success);
         });
 
         this.addEntry("verifyPhone", async(req, res) => {
