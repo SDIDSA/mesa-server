@@ -23,12 +23,14 @@ class Dev extends Route {
                     values: [tableName]
                 }
             }, "information_schema");
-            let bean = "package mesa.data;\n\nimport org.json.JSONObject;\nimport javafx.beans.property.SimpleStringProperty;\nimport javafx.beans.property.StringProperty;\n\npublic class " +
+            let bean = "package mesa.data.bean;\n\nimport org.json.JSONObject;\nimport javafx.beans.property.SimpleIntegerProperty;\nimport javafx.beans.property.IntegerProperty;\nimport javafx.beans.property.SimpleStringProperty;\nimport javafx.beans.property.StringProperty;\n\npublic class " +
                 className + " extends Bean {";
 
             cols.forEach(col => {
                 if (col.data_type === "text") {
                     bean += "\n\tprivate StringProperty " + toCamelCase(col.column_name) + ";";
+                } else if (col.data_type === "integer") {
+                    bean += "\n\tprivate IntegerProperty " + toCamelCase(col.column_name) + ";";
                 }
             });
 
@@ -37,6 +39,8 @@ class Dev extends Route {
             cols.forEach(col => {
                 if (col.data_type === "text") {
                     bean += "\n\t\t" + toCamelCase(col.column_name) + " = new SimpleStringProperty();";
+                } else if (col.data_type === "integer") {
+                    bean += "\n\t\t" + toCamelCase(col.column_name) + " = new SimpleIntegerProperty();";
                 }
             });
 
@@ -47,6 +51,10 @@ class Dev extends Route {
                     bean += "\n\tpublic StringProperty " + toCamelCase(col.column_name) + "Property() {\n\t\treturn " + toCamelCase(col.column_name) + ";\n\t}\n";
                     bean += "\n\tpublic String get" + toCamelCaseMethod(col.column_name) + "() {\n\t\treturn " + toCamelCase(col.column_name) + ".get();\n\t}\n";
                     bean += "\n\tpublic void set" + toCamelCaseMethod(col.column_name) + "(String val) {\n\t\t" + toCamelCase(col.column_name) + ".set(val);\n\t}\n";
+                } else if (col.data_type === "integer") {
+                    bean += "\n\tpublic IntegerProperty " + toCamelCase(col.column_name) + "Property() {\n\t\treturn " + toCamelCase(col.column_name) + ";\n\t}\n";
+                    bean += "\n\tpublic Integer get" + toCamelCaseMethod(col.column_name) + "() {\n\t\treturn " + toCamelCase(col.column_name) + ".get();\n\t}\n";
+                    bean += "\n\tpublic void set" + toCamelCaseMethod(col.column_name) + "(Integer val) {\n\t\t" + toCamelCase(col.column_name) + ".set(val);\n\t}\n";
                 }
             });
 

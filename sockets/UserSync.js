@@ -43,6 +43,10 @@ class UserSync extends SocketListener {
     }
 
     async notify(user_id, change) {
+        emit(user_id, "user_sync", change);
+    }
+
+    async emit(user_id, event, data) {
         let tokens = (await this.select({
             select: ["token"],
             from: ["session"],
@@ -54,7 +58,7 @@ class UserSync extends SocketListener {
 
         tokens.forEach(token => {
             let socket = this.getSocket(token.token);
-            this.to(socket).emit("user_sync", change);
+            this.to(socket).emit(event, data);
         });
     }
 }

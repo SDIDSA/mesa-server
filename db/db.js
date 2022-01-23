@@ -52,7 +52,7 @@ class db {
             };
         }
 
-        let data = extractData(process.env.DATABASE_URL || 'postgres://postgres:8520@localhost:5432/mesa');
+        let data = extractData(process.env.DATABASE_URL || 'postgres://postgres:8520@localhost:5432/postgres');
 
         console.log("database connection : success");
 
@@ -82,10 +82,10 @@ class db {
                 query += layJoin(cond, schema);
             })
         }
-        console.log({ query, values: data.where ? data.where.values : [] });
+        //console.log({ query, values: data.where ? data.where.values : [] });
 
         let res = (await this.db.query(query, data.where ? data.where.values : [])).rows;
-        console.log(res); //DEBUG
+        //console.log(res); //DEBUG
         return res;
     }
 
@@ -100,13 +100,13 @@ class db {
 
         query += " IS TRUE RETURNING *) SELECT count(*) FROM deleted"
 
-        console.log({ query, values: data.where.values });
+        //console.log({ query, values: data.where.values });
         let res = (await this.db.query(query, data.where.values)).rows;
-        console.log(res); //DEBUG
+        //console.log(res); //DEBUG
         return res[0].count;
     }
 
-    async insert(data) {
+    async insert(data, returning) {
         let query = "INSERT INTO public." + data.table + " (";
         data.keys.forEach((key, i) => {
             if (i != 0) {
@@ -122,8 +122,13 @@ class db {
             query += "$" + (i + 1);
         });
         query += ")";
-        console.log({ query, values: data.values });
-        await this.db.query(query, data.values);
+        if (returning) {
+            query += " RETURNING " + returning;
+        }
+        //console.log({ query, values: data.values });
+        let res = await this.db.query(query, data.values);
+        //console.log(res);
+        return res;
     }
 
     async update(data) {
@@ -146,7 +151,7 @@ class db {
             vals = vals.concat(data.where.values);
         }
 
-        console.log({ query, values: vals });
+        //console.log({ query, values: vals });
         let res = await this.db.query(query, vals);
         return res.rowCount;
     }

@@ -19,8 +19,8 @@ class Route {
         return (await this.app.db.delete(data));
     }
 
-    async insert(data) {
-        await this.app.db.insert(data);
+    async insert(data, returning) {
+        return await this.app.db.insert(data, returning);
     }
 
     async update(data) {
