@@ -43,7 +43,7 @@ class UserSync extends SocketListener {
     }
 
     async notify(user_id, change) {
-        emit(user_id, "user_sync", change);
+        this.emit(user_id, "user_sync", change);
     }
 
     async emit(user_id, event, data) {

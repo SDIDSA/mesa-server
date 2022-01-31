@@ -67,6 +67,20 @@ class Session extends Route {
             res.send({ user });
         });
 
+        this.addEntry("getUserForId", async(req, res) => {
+            let user_id = req.body.user_id;
+            let user = (await this.select({
+                select: ["username", "avatar"],
+                from: ["user"],
+                where: {
+                    keys: ["id"],
+                    values: [user_id]
+                }
+            }))[0];
+
+            res.send({ user });
+        });
+
         this.addEntry("logout", async(req, res, user_id, token) => {
             await this.app.user_sync.unregister(user_id, token);
             this.app.user_sync.removeToken(token);
@@ -221,6 +235,40 @@ class Session extends Route {
                         values: [group.id]
                     }
                 });
+
+                for (let j = 0; j < group.channels.length; j++) {
+                    let channel = group.channels[j];
+
+                    //select * from public.message where type='text' and channel=314 order by time desc limit 1;
+
+                    let last = (await this.select({
+                        select: ["id", "sender"],
+                        from: ["message"],
+                        where: {
+                            keys: ["channel", "type"],
+                            values: [channel.id, "text"],
+                            op: ["AND"]
+                        },
+                        order: "time desc",
+                        limit: "1"
+                    }));
+
+                    if (last.length == 0 || last[0].sender === user_id) {
+                        channel.unread = false;
+                    } else {
+                        let last_id = last[0].id;
+                        let found = await this.select({
+                            select: ["id"],
+                            from: ["message"],
+                            where: {
+                                keys: ["id>", "type", "sender"],
+                                values: [last_id, "seen", user_id],
+                                op: ["AND", "AND"]
+                            }
+                        });
+                        channel.unread = (found.length == 0);
+                    }
+                }
             }
 
             server.members = (await this.select({
@@ -290,6 +338,103 @@ class Session extends Route {
                     }]
                 });
             }
+        });
+
+        this.addEntry("sendMessage", async(req, res, user_id) => {
+            let sender = user_id;
+            let content = req.body.content;
+            let channel = req.body.channel;
+            let server = req.body.server;
+            let time = this.formatDate(new Date());
+
+            let id = (await this.insert({
+                table: "message",
+                keys: [
+                    "sender",
+                    "channel",
+                    "type",
+                    "content",
+                    "time"
+                ],
+                values: [
+                    sender,
+                    channel,
+                    "text",
+                    content,
+                    time
+                ]
+            }, "id")).rows[0].id;
+
+            setTimeout(async() => {
+                res.send({
+                    id,
+                    time
+                });
+
+                (await this.select({
+                    select: ['"user"'],
+                    from: ["member"],
+                    where: {
+                        keys: ["server"],
+                        values: [server]
+                    }
+                })).map(row => row.user).forEach(user => {
+                    this.app.user_sync.emit(user, "message", { id, sender, channel: parseInt(channel), type: "text", content, time });
+                });
+            }, 300);
+
+        });
+
+        this.addEntry("seen", async(req, res, user_id) => {
+            console.log("seen");
+            let channel = req.body.channel;
+            let time = this.formatDate(new Date());
+
+            await this.delete({
+                from: "message",
+                where: {
+                    keys: ["sender", "channel", "type"],
+                    values: [user_id, channel, "seen"],
+                    op: ["AND", "AND"]
+                }
+            });
+
+            (await this.insert({
+                table: "message",
+                keys: [
+                    "sender",
+                    "channel",
+                    "type",
+                    "content",
+                    "time"
+                ],
+                values: [
+                    user_id,
+                    channel,
+                    "seen",
+                    "",
+                    time
+                ]
+            }));
+
+            res.send({
+                seen: "seen"
+            });
+        })
+
+        this.addEntry("getMessages", async(req, res, user_id) => {
+            let channel = req.body.channel;
+
+            let data = await this.select({
+                select: ["*"],
+                from: ["message"],
+                where: {
+                    keys: ['channel'],
+                    values: [channel]
+                }
+            });
+
+            res.send({ data });
         });
     }
 

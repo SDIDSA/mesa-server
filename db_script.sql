@@ -33,7 +33,6 @@ BEGIN
 END;
 $$;
 
-
 CREATE TABLE public.channel (
     id integer NOT NULL,
     "group" integer NOT NULL,
@@ -93,6 +92,25 @@ CREATE SEQUENCE public.member_order_seq
 
 ALTER SEQUENCE public.member_order_seq OWNED BY public.member."order";
 
+CREATE TABLE public.message (
+    id integer NOT NULL,
+    sender text NOT NULL,
+    channel integer NOT NULL,
+    type text NOT NULL,
+    content text NOT NULL,
+    "time" text NOT NULL
+);
+
+CREATE SEQUENCE public.message_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.message_id_seq OWNED BY public.message.id;
+
 CREATE TABLE public.phone_confirm (
     user_id text NOT NULL,
     code text NOT NULL,
@@ -139,6 +157,8 @@ ALTER TABLE ONLY public.channel_group ALTER COLUMN id SET DEFAULT nextval('publi
 
 ALTER TABLE ONLY public.member ALTER COLUMN "order" SET DEFAULT nextval('public.member_order_seq'::regclass);
 
+ALTER TABLE ONLY public.message ALTER COLUMN id SET DEFAULT nextval('public.message_id_seq'::regclass);
+
 ALTER TABLE ONLY public.server ALTER COLUMN id SET DEFAULT nextval('public.server_id_seq'::regclass);
 
 ALTER TABLE ONLY public.channel
@@ -161,6 +181,9 @@ ALTER TABLE ONLY public.invite
 
 ALTER TABLE ONLY public.member
     ADD CONSTRAINT member_pkey PRIMARY KEY ("user", server);
+
+ALTER TABLE ONLY public.message
+    ADD CONSTRAINT message_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.phone_confirm
     ADD CONSTRAINT phone_confirm_pkey PRIMARY KEY (user_id);
@@ -187,6 +210,9 @@ CREATE TRIGGER on_insert AFTER INSERT ON public."user" FOR EACH ROW EXECUTE FUNC
 ALTER TABLE ONLY public.channel
     ADD CONSTRAINT channel_group_audio FOREIGN KEY ("group") REFERENCES public.channel_group(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
+ALTER TABLE ONLY public.message
+    ADD CONSTRAINT channel_message_fk FOREIGN KEY (channel) REFERENCES public.channel(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
 ALTER TABLE ONLY public.invite
     ADD CONSTRAINT invite_server_fk FOREIGN KEY (server) REFERENCES public.server(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
@@ -199,6 +225,9 @@ ALTER TABLE ONLY public.member
 ALTER TABLE ONLY public.server
     ADD CONSTRAINT owner_id FOREIGN KEY (owner) REFERENCES public."user"(id);
 
+ALTER TABLE ONLY public.message
+    ADD CONSTRAINT sender_fk FOREIGN KEY (sender) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
 ALTER TABLE ONLY public.channel_group
     ADD CONSTRAINT server_channel_group FOREIGN KEY (server) REFERENCES public.server(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
@@ -206,8 +235,7 @@ ALTER TABLE ONLY public.email_confirm
     ADD CONSTRAINT user_id FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.phone_confirm
-    ADD CONSTRAINT user_phone_code FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+    ADD CONSTRAINT user_phone_code FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.session
     ADD CONSTRAINT user_session_id FOREIGN KEY (user_id) REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE;
-

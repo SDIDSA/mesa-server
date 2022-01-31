@@ -52,7 +52,7 @@ class db {
             };
         }
 
-        let data = extractData(process.env.DATABASE_URL || 'postgres://postgres:8520@localhost:5432/postgres');
+        let data = extractData(process.env.DATABASE_URL || 'postgres://postgres:8520@localhost:5432/mesa');
 
         console.log("database connection : success");
 
@@ -82,7 +82,16 @@ class db {
                 query += layJoin(cond, schema);
             })
         }
-        //console.log({ query, values: data.where ? data.where.values : [] });
+
+        if (data.order) {
+            query += " ORDER BY " + data.order;
+        }
+
+        if (data.limit) {
+            query += " LIMIT " + data.limit;
+        }
+
+        console.log({ query, values: data.where ? data.where.values : [] });
 
         let res = (await this.db.query(query, data.where ? data.where.values : [])).rows;
         //console.log(res); //DEBUG
