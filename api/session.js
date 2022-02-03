@@ -126,7 +126,7 @@ class Session extends Route {
                     ]
                 }, "id")).rows[0].id;
 
-                await this.insert({
+                let order = (await this.insert({
                     table: "member",
                     keys: [
                         '"user"',
@@ -136,7 +136,7 @@ class Session extends Route {
                         user_id,
                         id
                     ]
-                })
+                }, '"order"')).rows[0].order;
 
                 res.send(success);
 
@@ -176,7 +176,7 @@ class Session extends Route {
                     }
                 }
 
-                this.app.user_sync.emit(user_id, "join_server", { id });
+                this.app.user_sync.emit(user_id, "join_server", { id, order });
 
             });
         });
@@ -316,7 +316,7 @@ class Session extends Route {
 
             if (servers.length != 0) {
                 let server = servers[0].server;
-                await this.insert({
+                let order = (await this.insert({
                     table: "member",
                     keys: [
                         '"user"',
@@ -326,9 +326,9 @@ class Session extends Route {
                         user_id,
                         server
                     ]
-                })
+                }, '"order"')).rows[0].order;
 
-                this.app.user_sync.emit(user_id, "join_server", { id: server });
+                this.app.user_sync.emit(user_id, "join_server", { id: server, order });
                 res.send(success);
             } else {
                 res.send({
@@ -371,17 +371,15 @@ class Session extends Route {
                     time
                 });
 
-                (await this.select({
-                    select: ['"user"'],
-                    from: ["member"],
-                    where: {
-                        keys: ["server"],
-                        values: [server]
-                    }
-                })).map(row => row.user).forEach(user => {
-                    this.app.user_sync.emit(user, "message", { id, sender, channel: parseInt(channel), type: "text", content, time });
+                this.app.user_sync.emitServer(server, this, "message", {
+                    id,
+                    sender,
+                    channel: parseInt(channel),
+                    type: "text",
+                    content,
+                    time
                 });
-            }, 300);
+            }, 200);
 
         });
 
@@ -420,6 +418,48 @@ class Session extends Route {
             res.send({
                 seen: "seen"
             });
+        });
+
+        this.addEntry("deleteChannel", async(req, res) => {
+            let server = parseInt(req.body.server);
+            let channel = parseInt(req.body.channel);
+
+            await this.delete({
+                from: "channel",
+                where: {
+                    keys: ["id"],
+                    values: [channel]
+                }
+            });
+
+            res.send(success)
+
+            this.app.user_sync.emitServer(server, this, "delete_channel", { server, channel })
+        });
+
+        this.addEntry("createChannel", async(req, res) => {
+            let server = parseInt(req.body.server);
+            let group = parseInt(req.body.group);
+            let name = req.body.name;
+            let type = req.body.type;
+
+            let id = (await this.insert({
+                table: "channel",
+                keys: [
+                    '"group"',
+                    "name",
+                    "type"
+                ],
+                values: [
+                    group,
+                    name,
+                    type
+                ]
+            }, "id")).rows[0].id;
+
+            res.send({ success });
+
+            this.app.user_sync.emitServer(server, this, "create_channel", { channel: { id, name, type }, group, server });
         })
 
         this.addEntry("getMessages", async(req, res, user_id) => {
