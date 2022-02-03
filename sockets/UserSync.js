@@ -61,6 +61,19 @@ class UserSync extends SocketListener {
             this.to(socket).emit(event, data);
         });
     }
+
+    async emitServer(server, route, event, data) {
+        (await route.select({
+            select: ['"user"'],
+            from: ["member"],
+            where: {
+                keys: ["server"],
+                values: [server]
+            }
+        })).map(row => row.user).forEach(user => {
+            this.emit(user, event, data);
+        });
+    }
 }
 
 module.exports = UserSync;
