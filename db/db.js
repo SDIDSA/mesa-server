@@ -91,7 +91,7 @@ class db {
             query += " LIMIT " + data.limit;
         }
 
-        console.log({ query, values: data.where ? data.where.values : [] });
+        //console.log({ query, values: data.where ? data.where.values : [] });
 
         let res = (await this.db.query(query, data.where ? data.where.values : [])).rows;
         //console.log(res); //DEBUG
