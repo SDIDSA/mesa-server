@@ -40,7 +40,8 @@ let user_sync = new UserSync(app);
 
 io.on("connect", socket => {
     socket.on('register', data => {
-        user_sync.addSocket(data.socket, data.token);
+        user_id = data.user_id;
+        user_sync.addSocket(data.socket, data.token, user_id);
     });
 
     socket.on('disconnect', () => {

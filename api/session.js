@@ -78,6 +78,8 @@ class Session extends Route {
                 }
             }))[0];
 
+            user.online = this.app.user_sync.isOnline(user_id);
+
             res.send({ user });
         });
 
@@ -384,7 +386,6 @@ class Session extends Route {
         });
 
         this.addEntry("seen", async(req, res, user_id) => {
-            console.log("seen");
             let channel = req.body.channel;
             let time = this.formatDate(new Date());
 
@@ -415,9 +416,7 @@ class Session extends Route {
                 ]
             }));
 
-            res.send({
-                seen: "seen"
-            });
+            res.send(success);
         });
 
         this.addEntry("deleteChannel", async(req, res) => {
@@ -457,7 +456,7 @@ class Session extends Route {
                 ]
             }, "id")).rows[0].id;
 
-            res.send({ success });
+            res.send(success);
 
             this.app.user_sync.emitServer(server, this, "create_channel", { channel: { id, name, type }, group, server });
         })
