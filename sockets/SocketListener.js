@@ -1,4 +1,5 @@
 const HashMap = require("hashmap");
+const { emit } = require("nodemon");
 
 class SocketListener {
     constructor(app) {
@@ -12,48 +13,52 @@ class SocketListener {
         this.sockets.set(token, socket);
         this.tokens.set(socket, token);
 
-        let onlineTokens = this.online.get(user_id);
+        let onlineSockets = this.online.get(user_id);
 
-        if (!onlineTokens) {
-            onlineTokens = [];
-            this.online.set(user_id, onlineTokens);
+        if (!onlineSockets) {
+            onlineSockets = [];
+            this.online.set(user_id, onlineSockets);
         }
 
-        onlineTokens.push(token);
-
+        onlineSockets.push(socket);
         console.log(JSON.stringify(this.online));
+
+        this.notifyOthers(user_id, "user_change", { online: true })
     }
 
     removeSocket(socket) {
-        let token = this.tokens.get(socket);
-
-        this.sockets.delete(token);
+        this.sockets.delete(this.tokens.get(socket));
         this.tokens.delete(socket);
 
-        this.removeOnline(token);
+        this.removeOnline(socket);
     }
 
     removeToken(token) {
-        this.tokens.delete(this.sockets.get(token));
+        let socket = this.sockets.get(token);
+
+        this.tokens.delete(socket);
         this.sockets.delete(token);
 
-        this.removeOnline(token);
+        this.removeOnline(socket);
     }
 
-    removeOnline(token) {
+    removeOnline(socket) {
         for (let i = 0; i < this.online.count(); i++) {
             let entry = this.online.entries()[i];
             let key = entry[0];
             let value = entry[1];
 
             for (let j = 0; j < value.length; j++) {
-                if (token === value[j]) {
+                if (socket === value[j]) {
                     value.splice(j, 1);
 
                     if (value.length == 0) {
                         this.online.delete(key);
                     }
+
                     console.log(JSON.stringify(this.online));
+
+                    this.notifyOthers(key, "user_change", { online: false })
                     return;
                 }
             }
@@ -64,6 +69,10 @@ class SocketListener {
         return this.online.has(user_id);
     }
 
+    getSockets(user_id) {
+        return this.online.get(user_id);
+    }
+
     getSocket(token) {
         return this.sockets.get(token);
     }
@@ -71,6 +80,70 @@ class SocketListener {
     to(socket) {
         return this.app.io.to(socket);
     }
+
+    async notify(user_id, change) {
+        this.emit(user_id, "user_sync", change);
+    }
+
+    async emit(user_id, event, data) {
+        let sockets = this.getSockets(user_id);
+        if (sockets)
+            sockets.forEach(socket => {
+                this.to(socket).emit(event, data);
+            });
+    }
+
+    async emitServer(server, event, data) {
+        (await this.select({
+            select: ['"user"'],
+            from: ["member"],
+            where: {
+                keys: ["server"],
+                values: [server]
+            }
+        })).map(row => row.user).forEach(user => {
+            this.emit(user, event, data);
+        });
+    }
+
+    async notifyOthers(user_id, event, data) {
+        data.user_id = user_id;
+
+        let servers = (await this.select({
+            select: ["server"],
+            from: ["member"],
+            where: {
+                keys: ['"user"'],
+                values: [user_id]
+            }
+        })).map(row => row.server);
+
+        let ids = [];
+        for (let i = 0; i < servers.length; i++) {
+            let members = (await this.select({
+                select: ['"user"'],
+                from: ["member"],
+                where: {
+                    keys: ["server"],
+                    values: [servers[i]]
+                }
+            })).map(row => row.user);
+
+            for (let j = 0; j < members.length; j++) {
+                let member = members[j];
+                if (member !== user_id) {
+                    ids.push(member);
+                }
+            }
+        }
+
+        ids = [...new Set(ids)];
+
+        ids.forEach(user => {
+            this.emit(user, event, data);
+        })
+    }
+
     async select(data, schema) {
         return (await this.app.db.select(data, schema));
     }
