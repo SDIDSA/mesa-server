@@ -87,12 +87,10 @@ class SocketListener {
 
     async emit(user_id, event, data) {
         let sockets = this.getSockets(user_id);
-        if (sockets) {
-            console.log(sockets.length);
+        if (sockets)
             sockets.forEach(socket => {
                 this.to(socket).emit(event, data);
             });
-        }
     }
 
     async emitServer(server, event, data) {
