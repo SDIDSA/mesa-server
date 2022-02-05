@@ -331,6 +331,7 @@ class Session extends Route {
                 }, '"order"')).rows[0].order;
 
                 this.app.user_sync.emit(user_id, "join_server", { id: server, order });
+                this.app.user_sync.emitServer(server, "user_joined", { server, user_id })
                 res.send(success);
             } else {
                 res.send({

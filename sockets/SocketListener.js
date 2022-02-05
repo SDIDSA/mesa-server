@@ -58,7 +58,7 @@ class SocketListener {
 
                     console.log(JSON.stringify(this.online));
 
-                    this.notifyOthers(user_id, "user_change", { online: false })
+                    this.notifyOthers(key, "user_change", { online: false })
                     return;
                 }
             }
@@ -70,7 +70,6 @@ class SocketListener {
     }
 
     getSockets(user_id) {
-        console.log(user_id);
         return this.online.get(user_id);
     }
 
@@ -88,10 +87,12 @@ class SocketListener {
 
     async emit(user_id, event, data) {
         let sockets = this.getSockets(user_id);
-        if (sockets)
+        if (sockets) {
+            console.log(sockets.length);
             sockets.forEach(socket => {
                 this.to(socket).emit(event, data);
             });
+        }
     }
 
     async emitServer(server, event, data) {
