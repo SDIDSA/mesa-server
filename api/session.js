@@ -373,7 +373,7 @@ class Session extends Route {
                     time
                 });
 
-                this.app.user_sync.emitServer(server, this, "message", {
+                this.app.user_sync.emitServer(server, "message", {
                     id,
                     sender,
                     channel: parseInt(channel),
@@ -433,7 +433,7 @@ class Session extends Route {
 
             res.send(success)
 
-            this.app.user_sync.emitServer(server, this, "delete_channel", { server, channel })
+            this.app.user_sync.emitServer(server, "delete_channel", { server, channel })
         });
 
         this.addEntry("createChannel", async(req, res) => {
@@ -458,7 +458,7 @@ class Session extends Route {
 
             res.send(success);
 
-            this.app.user_sync.emitServer(server, this, "create_channel", { channel: { id, name, type }, group, server });
+            this.app.user_sync.emitServer(server, "create_channel", { channel: { id, name, type }, group, server });
         })
 
         this.addEntry("getMessages", async(req, res, user_id) => {
