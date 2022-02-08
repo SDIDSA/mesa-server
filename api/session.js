@@ -368,21 +368,19 @@ class Session extends Route {
                 ]
             }, "id")).rows[0].id;
 
-            setTimeout(async() => {
-                res.send({
-                    id,
-                    time
-                });
+            res.send({
+                id,
+                time
+            });
 
-                this.app.user_sync.emitServer(server, "message", {
-                    id,
-                    sender,
-                    channel: parseInt(channel),
-                    type: "text",
-                    content,
-                    time
-                });
-            }, 200);
+            this.app.user_sync.emitServer(server, "message", {
+                id,
+                sender,
+                channel: parseInt(channel),
+                type: "text",
+                content,
+                time
+            });
 
         });
 
@@ -399,7 +397,7 @@ class Session extends Route {
                 }
             });
 
-            (await this.insert({
+            let id = (await this.insert({
                 table: "message",
                 keys: [
                     "sender",
@@ -415,8 +413,9 @@ class Session extends Route {
                     "",
                     time
                 ]
-            }));
+            }, "id")).rows[0].id;
 
+            this.app.user_sync.emit(user_id, "message", { id, sender: user_id, channel: parseInt(channel), type: "seen", content: "", time });
             res.send(success);
         });
 

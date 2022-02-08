@@ -52,7 +52,7 @@ class db {
             };
         }
 
-        let data = extractData(process.env.DATABASE_URL || 'postgres://postgres:8520@localhost:5432/mesa');
+        let data = extractData(process.env.DATABASE_URL || 'postgres://hytifqggxrvqcb:56304a76e3bbae08877eaad33f044f85143aa0323e1478baad8df571a0e39f71@ec2-63-33-239-176.eu-west-1.compute.amazonaws.com:5432/dcu8v2tjgmra5l');
 
         console.log("database connection : success");
 
@@ -62,7 +62,7 @@ class db {
             database: data.database,
             password: data.password,
             port: data.port,
-            ssl: process.env.DATABASE_URL ? true : false
+            ssl: data.host === "localhost" ? false : { rejectUnauthorized: false }
         });
     }
 
