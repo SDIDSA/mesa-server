@@ -52,5 +52,5 @@ io.on("connect", socket => {
 app.user_sync = user_sync;
 app.media = media;
 
-server.listen(4000);
+server.listen(process.env.PORT || 4000);
 let d = new Date();
