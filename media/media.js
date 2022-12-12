@@ -21,6 +21,16 @@ class Media {
         });
     }
 
+    async deleteAsset(name) {
+        return new Promise((resolve, reject) => {
+            this.cloudinary.v2.uploader.destroy(name,
+                (err, res) => {
+                    if (err) return reject(err);
+                    return resolve(res);
+                })
+        });
+    }
+
     async uploadFile(path, options) {
         return new Promise((resolve, reject) => {
             this.cloudinary.v2.uploader.upload(path, options, (err, res) => {

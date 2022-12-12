@@ -1,3 +1,4 @@
+
 const formatDate = d => {
     return adjust(d.getUTCDate(), 2) +
         adjust(d.getUTCMonth() + 1, 2) +
@@ -28,15 +29,19 @@ class Route {
     addEntry(name, handler) {
         let ent = this.path + "/" + name;
         console.log("registering path  " + ent);
-        this.app.post(ent, handler);
+
+        this.app.post(ent, async (req, res) => {
+            console.log(ent + " was called with " + JSON.stringify(req.body));
+            handler(req, res);
+        });
     }
 
     async select(data, schema) {
         return (await this.app.db.select(data, schema));
     }
 
-    async delete(data) {
-        return (await this.app.db.delete(data));
+    async delete(data, returning) {
+        return (await this.app.db.delete(data, returning));
     }
 
     async insert(data, returning) {

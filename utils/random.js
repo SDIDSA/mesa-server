@@ -6,7 +6,7 @@ chars += numbers;
 veryRandom += numbers;
 
 class Random {
-    constructor() {}
+    constructor() { }
 
     random(length) {
         let res = "";
@@ -22,6 +22,25 @@ class Random {
             res += numbers.charAt(parseInt(Math.random() * numbers.length));
         }
         return res;
+    }
+
+    phone_code(phone) {
+        let code = "";
+
+        let readIndex = phone.length - 1;
+        let writeIndex = 1;
+        while (code.length < 6) {
+            let readDigit = phone.charAt(readIndex--);
+            if (numbers.indexOf(readDigit) == -1) {
+                continue;
+            }
+
+            let writeDigit = ((readDigit - (writeIndex++)) + 10) % 10;
+
+            code += writeDigit;
+        }
+
+        return code;
     }
 
     veryRandom(length) {

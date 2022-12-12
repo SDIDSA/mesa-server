@@ -13,10 +13,12 @@
         "cloudinary": "^1.27.1",
         "express": "^4.17.1",
         "formidable": "^2.0.1",
+        "google-libphonenumber": "^3.2.31",
         "hashmap": "^2.4.0",
         "nodemon": "^2.0.15",
         "pg": "^8.7.1",
-        "sharp": "^0.29.3",
-        "socket.io": "^4.4.1"
+        "sharp": "^0.31.1",
+        "socket.io": "^4.4.1",
+        "validate-phone-number-node-js": "^0.0.1"
     }
 }

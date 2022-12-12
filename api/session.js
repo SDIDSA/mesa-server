@@ -40,7 +40,7 @@ const templates = {
 }
 
 const success = { status: "success" };
-const bad_session = { err: "bad_session" };
+const bad_session = { status: "error", err: "bad_session" };
 class Session extends Route {
     constructor(app) {
         super(app, "/session");

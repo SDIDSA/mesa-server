@@ -1,8 +1,10 @@
 const Route = require("./route.js");
+const phoneUtil = require('google-libphonenumber').PhoneNumberUtil.getInstance();
 
 const success = { status: "success" };
 const incorrect_password = (key) => {
     return {
+        status: "error",
         err: [{
             key,
             value: "incorrect_password"
@@ -12,6 +14,16 @@ const incorrect_password = (key) => {
 
 const checkEmail = (email) => {
     return /^\S+@\S+\.\S+$/.test(email);
+}
+
+const checkPhone = (phone) => {
+    try {
+        let number = phoneUtil.parse(phone);
+        return phoneUtil.isValidNumber(number);
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
 }
 
 const checkDate = (date) => {
@@ -63,7 +75,7 @@ class Auth extends Route {
     constructor(app) {
         super(app, "/auth");
 
-        this.addEntry("login", async(req, res) => {
+        this.addEntry("login", async (req, res) => {
             let email_phone = req.body.email_phone;
             let password = req.body.password;
 
@@ -92,6 +104,7 @@ class Auth extends Route {
 
                 user.email_confirmed = (conf_rows.length == 0);
                 res.send({
+                    status: "success",
                     user,
                     token
                 })
@@ -109,11 +122,96 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("register", async(req, res) => {
+        this.addEntry("phone_own", async (req, res) => {
+            let phone = req.body.phone;
+
+            var err = [];
+
+            if (checkPhone(phone) == false) {
+                err.push({
+                    key: "phone",
+                    value: "phone_invalid"
+                })
+            } else {
+                let rows = await this.select({
+                    select: ["id"],
+                    from: ["user"],
+                    where: {
+                        keys: ["phone"],
+                        values: [phone]
+                    }
+                });
+                if (rows.length > 0) {
+                    err.push({
+                        key: "phone",
+                        value: "phone_used"
+                    })
+                }
+            }
+
+            if (err.length > 0) {
+                res.send({ status: "error", err })
+            } else {
+                let code = this.app.random.phone_code(phone);
+                //TODO ACTUALLY SEND CODE ??
+
+                try {
+                    await this.insert({
+                        table: "phone_own",
+                        keys: [
+                            "phone",
+                            "code"
+                        ],
+                        values: [
+                            phone,
+                            code
+                        ]
+                    });
+                } catch (err) {
+                    await this.update({
+                        table: "phone_own",
+                        cols: ["phone", "code"],
+                        values: [phone, code],
+                        where: {
+                            keys: ["phone"],
+                            values: [phone]
+                        }
+                    });
+                }
+                res.send(success);
+            }
+        });
+
+        this.addEntry("verify_phone_own", async (req, res) => {
+            let phone = req.body.phone;
+            let code = req.body.code;
+
+            let found = (await this.select({
+                select: ["id"],
+                from: ["phone_own"],
+                where: {
+                    keys: ["phone", "code"],
+                    values: [phone, code],
+                    op: ["AND"]
+                }
+            }));
+
+            if (found.length == 1) {
+                res.send(success);
+            } else {
+                res.send({
+                    status: "error", err: [
+                        {
+                            key: "phone_code",
+                            value: "verification_code_incorrect"
+                        }
+                    ]
+                })
+            }
+        })
+
+        this.addEntry("email_own", async (req, res) => {
             let email = req.body.email;
-            let username = req.body.username;
-            let password = req.body.password;
-            let birth_date = req.body.birth_date;
 
             var err = [];
 
@@ -139,6 +237,120 @@ class Auth extends Route {
                 }
             }
 
+            if (err.length > 0) {
+                res.send({ status: "error", err })
+            } else {
+                res.send(success);
+            }
+        });
+
+        this.addEntry("username_own", async (req, res) => {
+            let username = req.body.username;
+            let password = req.body.password;
+
+            var err = [];
+
+            if (username.length < 4) {
+                err.push({
+                    key: "username",
+                    value: "username_short"
+                })
+            }
+
+            let usernameCheck = checkUsername(username);
+            if (usernameCheck) {
+                err.push({
+                    key: "username",
+                    value: "username_invalid_char",
+                    plus: usernameCheck
+                })
+            }
+
+            if (password.length < 6) {
+                err.push({
+                    key: "password",
+                    value: "password_short"
+                })
+            }
+
+            if (err.length > 0) {
+                res.send({ status: "error", err })
+            } else {
+                res.send(success);
+            }
+        });
+
+        this.addEntry("register", async (req, res) => {
+            let email = req.body.email;
+            let phone = req.body.phone;
+            let phone_code = req.body.phone_code;
+            let username = req.body.username;
+            let password = req.body.password;
+            let birth_date = req.body.birth_date;
+
+            var err = [];
+
+            if (email) {
+                if (checkEmail(email) == false) {
+                    err.push({
+                        key: "email",
+                        value: "email_invalid"
+                    })
+                } else {
+                    let rows = await this.select({
+                        select: ["id"],
+                        from: ["user"],
+                        where: {
+                            keys: ["email"],
+                            values: [email]
+                        }
+                    });
+                    if (rows.length > 0) {
+                        err.push({
+                            key: "email",
+                            value: "email_used"
+                        })
+                    }
+                }
+            } else if (phone) {
+                if (checkPhone(phone) == false) {
+                    err.push({
+                        key: "phone",
+                        value: "phone_invalid"
+                    })
+                } else {
+                    let rows = await this.select({
+                        select: ["id"],
+                        from: ["user"],
+                        where: {
+                            keys: ["phone"],
+                            values: [phone]
+                        }
+                    });
+                    if (rows.length > 0) {
+                        err.push({
+                            key: "phone",
+                            value: "phone_used"
+                        })
+                    }
+
+                    let found = (await this.select({
+                        select: ["id"],
+                        from: ["phone_own"],
+                        where: {
+                            keys: ["phone", "code"],
+                            values: [phone, phone_code],
+                            op: ["AND"]
+                        }
+                    }));
+                    if (found.length == 0) {
+                        err.push({
+                            key: "phone",
+                            value: "verification_code_incorrect"
+                        });
+                    }
+                }
+            }
 
             if (checkDate(birth_date) == false) {
                 err.push({
@@ -164,15 +376,22 @@ class Auth extends Route {
             }
 
             if (err.length > 0) {
-                res.send({ err })
+                res.send({ status: "error", err })
             } else {
+                await this.delete({
+                    from: "phone_own",
+                    where: {
+                        keys: ["phone"],
+                        values: [phone]
+                    }
+                });
                 let id = this.generateUniqueId();
                 let avatar = await app.media.generateAvatar(id);
                 this.insert({
                     table: "user",
                     keys: [
                         "id",
-                        "email",
+                        phone ? "phone" : "email",
                         "username",
                         "password",
                         "birth_date",
@@ -180,7 +399,7 @@ class Auth extends Route {
                     ],
                     values: [
                         id,
-                        email,
+                        phone ? phone : email,
                         username,
                         password,
                         birth_date,
@@ -191,7 +410,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry('verify', async(req, res) => {
+        this.addEntry('verify', async (req, res) => {
             let user_id = req.body.user_id;
             let code = req.body.verification_code;
             let count = await this.delete({
@@ -215,7 +434,7 @@ class Auth extends Route {
             }
         })
 
-        this.addEntry('editUsername', async(req, res) => {
+        this.addEntry('editUsername', async (req, res) => {
             let user_id = req.body.user_id;
             let username = req.body.username;
             let password = req.body.password;
@@ -270,7 +489,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry('editEmail', async(req, res) => {
+        this.addEntry('editEmail', async (req, res) => {
             let user_id = req.body.user_id;
             let email = req.body.email;
             let password = req.body.password;
@@ -357,7 +576,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("sendPhoneCode", async(req, res) => {
+        this.addEntry("sendPhoneCode", async (req, res) => {
             let user_id = req.body.user_id;
             let phone = req.body.phone;
 
@@ -405,7 +624,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("verifyPhone", async(req, res) => {
+        this.addEntry("verifyPhone", async (req, res) => {
             let user_id = req.body.user_id;
             let phone = req.body.phone;
             let code = req.body.code;
@@ -433,7 +652,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("finalizePhone", async(req, res) => {
+        this.addEntry("finalizePhone", async (req, res) => {
             let user_id = req.body.user_id;
             let password = req.body.password;
 
@@ -475,7 +694,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("removePhone", async(req, res) => {
+        this.addEntry("removePhone", async (req, res) => {
             let user_id = req.body.user_id;
             let password = req.body.password;
 
@@ -498,7 +717,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("changePassword", async(req, res) => {
+        this.addEntry("changePassword", async (req, res) => {
             let user_id = req.body.user_id;
             let curr_pass = req.body.curr_pass;
             let new_pass = req.body.new_pass;
@@ -527,7 +746,7 @@ class Auth extends Route {
             }
         });
 
-        this.addEntry("deleteAccount", async(req, res) => {
+        this.addEntry("deleteAccount", async (req, res) => {
             let user_id = req.body.user_id;
             let password = req.body.password;
 
@@ -538,10 +757,13 @@ class Auth extends Route {
                     values: [user_id, password],
                     op: ["AND"]
                 }
-            });
+            }, "avatar");
 
-            if (count == 1) {
-                res.send(success)
+            if (count.length == 1) {
+                res.send(success);
+                let avatar = count[0].avatar;
+                let avatar_id = avatar.substring(avatar.lastIndexOf("/") + 1).split(".")[0];
+                app.media.deleteAsset(avatar_id);
             } else {
                 res.send(incorrect_password("password"));
             }

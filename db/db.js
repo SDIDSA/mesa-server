@@ -1,5 +1,7 @@
 const { Pool } = require('pg');
 
+const debug = false;
+
 const lay = (arr, pre, post) => {
     let res = "";
     arr.forEach((el, i) => {
@@ -51,9 +53,9 @@ class db {
                 database: third[1]
             };
         }
-        let devDb = "postgres://postgres:8520@localhost:5432/mesa";
+        let devDb = "postgres://luke:nikmalik@localhost:5432/mesa";
         let relDb = "postgres://hytifqggxrvqcb:56304a76e3bbae08877eaad33f044f85143aa0323e1478baad8df571a0e39f71@ec2-63-33-239-176.eu-west-1.compute.amazonaws.com:5432/dcu8v2tjgmra5l";
-        let data = extractData(process.env.DATABASE_URL || relDb);
+        let data = extractData(process.env.DATABASE_URL || devDb);
 
         console.log("database connection : success");
 
@@ -92,14 +94,18 @@ class db {
             query += " LIMIT " + data.limit;
         }
 
-        //console.log({ query, values: data.where ? data.where.values : [] });
+        if(debug) 
+            console.log({ query, values: data.where ? data.where.values : [] });
 
         let res = (await this.db.query(query, data.where ? data.where.values : [])).rows;
-        //console.log(res); //DEBUG
+        
+        if(debug)
+            console.log(res);
+        
         return res;
     }
 
-    async delete(data) {
+    async delete(data, returning) {
         let query = "WITH deleted AS (delete ";
         query += " FROM public." + data.from;
 
@@ -108,12 +114,17 @@ class db {
             query += preLayWhere(data.where);
         }
 
-        query += " IS TRUE RETURNING *) SELECT count(*) FROM deleted"
+        query += " IS TRUE RETURNING *) SELECT " + (returning ? returning : "count(*)") + " FROM deleted"
 
-        //console.log({ query, values: data.where.values });
+        if(debug)
+            console.log({ query, values: data.where.values });
+        
         let res = (await this.db.query(query, data.where.values)).rows;
-        //console.log(res); //DEBUG
-        return res[0].count;
+        
+        if(debug)
+            console.log(res);
+        
+        return returning ? res : res[0].count;
     }
 
     async insert(data, returning) {
@@ -135,9 +146,15 @@ class db {
         if (returning) {
             query += " RETURNING " + returning;
         }
-        //console.log({ query, values: data.values });
+        
+        if(debug)
+            console.log({ query, values: data.values });
+        
         let res = await this.db.query(query, data.values);
-        //console.log(res);
+        
+        if(debug)
+            console.log(res);
+        
         return res;
     }
 
@@ -161,8 +178,14 @@ class db {
             vals = vals.concat(data.where.values);
         }
 
-        //console.log({ query, values: vals });
+        if(debug)
+            console.log({ query, values: vals });
+
         let res = await this.db.query(query, vals);
+
+        if(debug)
+            console.log(res);
+
         return res.rowCount;
     }
 }
